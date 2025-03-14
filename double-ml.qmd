@@ -1,0 +1,551 @@
+---
+title: "Causal Inference and Machine Learning"
+author: "Benjamin J. Radford"
+format: 
+  revealjs:
+    theme: simple
+    html-math-method: mathjax
+    embed-resources: true
+editor: visual
+include-in-header:
+  - text: |
+      <style>
+      .callout.callout-style-default {
+        text-align: center;
+      }
+      </style>
+---
+
+## Introduction
+
+Causal Inference and Machine Learning.
+
+1.  Go to: [www.github.com/benradford/double-ml-workshop](www.github.com/benradford/double-ml-workshop)
+2.  In upper right, click `Code` and then `Download Zip`.
+3.  Unzip the folder and open `double-ml.qmd` in RStudio.
+
+```{r, echo=F, eval=T}
+## Code to set up plots
+par(mar=c(5.1,4.1,0.1,0.1))
+```
+
+## This Talk
+
+-   Introduction
+
+    -   Inference
+
+    -   Causality
+
+    -   Causal Inference
+
+    -   Machine Learning
+
+-   Double Machine Learning / Debiased Machine Learning
+
+-   Your Turn!
+
+-   Conclusion
+
+## Inference
+
+-   Inference means that we are attempting to learn (i.e., estimate) about the value of a population parameter that we can't observe.
+
+-   For example, we might estimate $\hat{\beta}$ using OLS, our estimator for $\beta$ in the population, where $\beta$ describes the relationship (i.e., slope) between $X$ and $Y$.
+
+## Causality
+
+-   **Causality** is not the same as **inference**.
+
+-   We can infer values that are non-causal.
+
+-   Causality is all about your *causal identification strategy*.
+
+-   Your *identification strategy* is how you justify making causal claims given your research design.
+
+-   What does it even mean to "cause" something?
+
+## Causal Inference
+
+-   Causal inference is the combination of an *identification strategy* and *statistical inference*.
+
+-   It requires:
+
+    -   Convincing your reader that your estimand matches your theory.
+
+    -   Convincing your reader that your estimator captures your estimand.
+
+    -   Convincing your reader that the relationship represented by your estimand is *causal*.
+
+    -   Convincing your reader that your estimator is not confounded or collided.
+
+## Causal Inference Summarized
+
+-   **Inference**: this is the statistical task of using a sample to learn about a population.
+
+-   **Causal inference**: this is the research design task of convincing readers that the parameters you're making inferences about represent causal relationships and not simply spurious correlations.
+
+## Machine Learning
+
+::: incremental
+-   The goal of *machine learning* is to *learn* (estimate) a function of interest given the data that go into and come out of the function.
+
+-   Think of functions like we do in mathematics: $f(x) \rightarrow y$
+
+-   $x$ goes in and $y$ comes out.
+
+-   In most math courses (e.g., algebra), we know $x$ and we know $f(\cdot)$; we're solving for $y$.
+
+-   In machine learning, we know $x$ and we know $y$; we're solving for $f(\cdot)$.
+:::
+
+## Why Machine Learning
+
+We use machine learning for two primary purposes:
+
+1.  We want to be able to predict new $y$ values given new $x$ values.
+2.  We are interested in the properties of $f(\cdot)$ itself ("*inference*").
+
+## Simple Machine Learning
+
+1.  Is *OLS Linear Regression* machine learning?
+2.  Yes!
+3.  We assume $f(X) = \alpha + X\beta + u$ and want to *learn* $\alpha, \beta$ using known $X$ and $Y$.
+
+## OLS for Inference
+
+::: incremental
+-   OLS is great for *inference*:
+
+    -   $\beta$ is easy to interpret.
+
+    -   "A one unit increase in $x_i$ corresponds to an expected $\beta_i$ increase in $y$, holding all other $x_j$ constant."
+
+-   OLS is *not great* for *prediction*:
+
+    -   Often, no reason to expect constant linear relationships between $X$ and $Y$.
+
+    -   OLS chokes on problems with many independent variables.
+
+    -   OLS assumes a very strict functional form and interactions or transformations must be input manually.
+:::
+
+## So Are There Other ML Options?
+
+![](figures/families.png)
+
+## Why Not Just Use OLS?
+
+::: incremental
+-   We often don't *know* how $X$ and $Y$ are related.
+
+-   Most ML methods make weaker assumptions about $f(\cdot)$.
+
+-   Many ML models can learn transformations, variable selection, and interactions from the data!
+
+-   But, this comes at a cost:
+
+    -   Complicated (or even *unknown*) functional forms.
+
+    -   No concept of standard errors needed for inference.
+
+        -   See: conformal prediction.
+
+-   Often ML is great for prediction, bad for inference.
+:::
+
+## Back to OLS
+
+::: callout-note
+## OLS Linear Regression
+
+$y = \alpha + \beta x + \beta_{1}z_{1} + \ldots + \beta_k z_k + u$
+:::
+
+-   $y$: dependent variable (outcome)
+
+-   $x$: independent variable of interest (treatment)
+
+-   $z_j$: control variables / confounders (not interesting)
+
+## Back to OLS
+
+::: callout-note
+## OLS Linear Regression
+
+$y = \alpha + \beta x + \beta_{1}z_{1} + \ldots + \beta_k z_k + u$
+:::
+
+-   Can we have the best of both worlds?
+
+    -   What if we could assume a linear relationship between $x$ and $y$...
+
+    -   ...and make fewer assumptions about the relationship between $z$ and $y$?
+
+# Double Machine Learning
+
+## Double Machine Learning
+
+-   In double machine learning, we can control for *many* non-linear confounds $(z)$ using any machine learning model.
+
+-   Then, we can use a standard regression model to estimate the effect of $x$ on $y$.
+
+-   Predictive performance and flexibility of machine learning!
+
+-   Interpretability and uncertainty of traditional statistical inference!
+
+## But Let's Start with OLS
+
+1.  Load ice cream data.
+2.  We're interested primarily in sales $(y)$, price $(x)$, and day of week $(z)$.
+
+```{r, echo=T}
+data <- read.csv("data/ice_cream_sales.csv")
+head(data)
+```
+
+## Always Plot Your Data
+
+```{r, echo=F}
+plot(data$price, 
+     data$sales, 
+     col=c("#3a86ff","#fb5607")[as.numeric(data$weekday %in% c(1,7))+1],
+     bg=c("#3a86ff33","#fb560733")[as.numeric(data$weekday %in% c(1,7))+1], 
+     pch=21, cex=2,
+     xlab="Price",
+     ylab="Sales",
+     las=1)
+```
+
+## Let's Model It
+
+```{r}
+ols_model <- lm(sales ~ price + weekday, data=data)
+summary(ols_model)
+```
+
+## What's Weird Here?
+
+```{r,echo=F}
+plot(data$price, 
+     data$sales, 
+     col=c("#3a86ff","#fb5607")[as.numeric(data$weekday %in% c(1,7))+1],
+     bg=c("#3a86ff33","#fb560733")[as.numeric(data$weekday %in% c(1,7))+1], 
+     pch=21, 
+     las=1, cex=2,
+     xlab="Price",
+     ylab="Sales")
+abline(a=192.5306 + 0.1111*1, b=1.2285, lwd=2)
+abline(a=192.5306 + 0.1111*2, b=1.2285, lwd=2)
+abline(a=192.5306 + 0.1111*3, b=1.2285, lwd=2)
+abline(a=192.5306 + 0.1111*4, b=1.2285, lwd=2)
+abline(a=192.5306 + 0.1111*5, b=1.2285, lwd=2)
+abline(a=192.5306 + 0.1111*6, b=1.2285, lwd=2)
+abline(a=192.5306 + 0.1111*7, b=1.2285, lwd=2)
+```
+
+## A Note on Nonlinearity
+
+```{r, eval=F, echo=F, results="hide", warning="hide", message="hide"}
+## Your may need to run this line of code in your console:
+install.packages("RColorBrewer")
+```
+
+```{r, echo=F}
+library(RColorBrewer)
+pal <- brewer.pal(7,"Spectral")
+plot(data$price, 
+     data$sales, 
+     col=pal[data$weekday],
+     bg=pal[data$weekday], 
+     pch=21, 
+     las=1, cex=1,
+     xlab="Price",
+     ylab="Sales")
+legend("topright", c("Sun","Mon","Tue","Wed","Thu","Fri","Sat"), col="black", pt.bg=pal, pch=21)
+```
+
+## Now Let's Try Another Method of OLS
+
+```{r, echo=T}
+y_on_z <- lm(sales ~ weekday, data=data)
+x_on_z <- lm(price ~ weekday, data=data)
+y_on_x <- lm(y_on_z$resid ~ x_on_z$resid)
+summary(y_on_x)
+```
+
+## Notice Anything Neat?
+
+::: callout-note
+## Standard Linear Regression
+
+```{r}
+print(summary(ols_model)$coefficients)
+```
+:::
+
+::: callout-note
+## Frisch-Waugh-Lovell
+
+```{r}
+print(summary(y_on_x)$coefficients)
+```
+:::
+
+## They're Exactly the Same!
+
+Original OLS:
+
+```         
+price         1.228518 0.16228712 7.570028 4.061027e-14
+```
+
+Frisch-Waugh-Lovell regression:
+
+```         
+x_on_z$resid  1.228518 0.1622790  7.570407 4.049241e-14
+```
+
+## Frisch-Waugh-Lovell regression:
+
+::: incremental
+To estimate the treatment effect of $x$ on $y$ in the presence of confounders $z$, we could:
+
+1.  Use a single OLS model
+2.  Use FWL:
+    1.  Estimate $\hat{y} = \alpha_1 + \beta_1 z$ and get the residuals $u_y$
+    2.  Estimate $\hat{x} = \alpha_2 + \beta_2 z$ and get the residuals $u_x$
+    3.  Regress $u_y$ on $u_x$: $\hat{u_y} = \alpha + \beta \hat{u_x}$
+3.  The coefficient $\hat{\beta}$ for price in OLS is the same as the coefficient for the *residualized* price in FWL!
+4.  Wow!
+:::
+
+## Let's Visualize This
+
+```{r}
+plot(data$price, 
+     data$sales, 
+     col=c("#3a86ff","#fb5607")[as.numeric(data$weekday %in% c(1,7))+1],
+     bg=c("#3a86ff33","#fb560733")[as.numeric(data$weekday %in% c(1,7))+1], 
+     pch=21, cex=2,
+     las=1,
+     xlab="Price",
+     ylab="Sales")
+```
+
+## Now, Replace Sales with Residuals
+
+```{r}
+plot(data$price, y_on_z$resid,
+     col=c("#3a86ff","#fb5607")[as.numeric(data$weekday %in% c(1,7))+1],
+     bg=c("#3a86ff33","#fb560733")[as.numeric(data$weekday %in% c(1,7))+1], 
+     pch=21, cex=2,
+     las=1,
+     xlab="Price",
+     ylab="Sales Residuals")
+```
+
+## Replace Price with Residuals
+
+```{r}
+plot(x_on_z$resid, y_on_z$resid,
+     col=c("#3a86ff","#fb5607")[as.numeric(data$weekday %in% c(1,7))+1],
+     bg=c("#3a86ff33","#fb560733")[as.numeric(data$weekday %in% c(1,7))+1], 
+     pch=21, cex=2,
+     las=1,
+     xlab="Price Residuals",
+     ylab="Sales Residuals")
+```
+
+## Now Plot FWL Regression
+
+```{r}
+plot(x_on_z$resid, y_on_z$resid,
+     col=c("#3a86ff","#fb5607")[as.numeric(data$weekday %in% c(1,7))+1],
+     bg=c("#3a86ff33","#fb560733")[as.numeric(data$weekday %in% c(1,7))+1], 
+     pch=21, 
+     las=1, cex=2,
+     xlab="Price",
+     ylab="Sales Residuals")
+abline(y_on_x, lwd=4)
+```
+
+## How Does FWL Regression Help Us?
+
+-   We don't **have** to use OLS for the first (or second) stage!
+
+-   We can use any method we like to control for the confounding variables.
+
+-   This includes methods that are much more flexible than OLS.
+
+## Double ML with a Random Forest
+
+You may need to run the following code in your Console to install the `randomForest` package.
+
+```{r, eval=F, echo=T, results="hide", warning="hide", message="hide"}
+install.packages("randomForest")
+```
+
+Load the `randomForest` package:
+
+```{r, echo=T, eval=T}
+library("randomForest")
+```
+
+## Get the Sales Residuals
+
+First, let's regress $y$ (sales) on $z$ (weekday), our confounder.
+
+```{r, echo=T, eval=T}
+rf_sales_on_weekday <- randomForest(sales ~ weekday, data=data)
+rf_sales_on_weekday_resid <- rf_sales_on_weekday$y - rf_sales_on_weekday$predicted
+```
+
+## Get the Price Residuals
+
+```{r, echo=T, eval=T}
+rf_price_on_weekday <- randomForest(price ~ weekday, data=data)
+rf_price_on_weekday_resid <- rf_price_on_weekday$y - rf_price_on_weekday$predicted
+```
+
+## Plot the Residuals
+
+```{r}
+plot(rf_price_on_weekday_resid, rf_sales_on_weekday_resid,
+     col=c("#3a86ff","#fb5607")[as.numeric(data$weekday %in% c(1,7))+1],
+     bg=c("#3a86ff33","#fb560733")[as.numeric(data$weekday %in% c(1,7))+1], 
+     pch=21, cex=2,
+     las=1,
+     xlab="Price Residuals",
+     ylab="Sales Residuals")
+```
+
+## Estimate the ATE
+
+```{r, echo=T}
+ols_ice_cream <- lm(rf_sales_on_weekday_resid~ rf_price_on_weekday_resid)
+```
+
+```{r, echo=F, eval=T}
+plot(rf_price_on_weekday_resid, rf_sales_on_weekday_resid, 
+     col=c("#3a86ff","#fb5607")[as.numeric(data$weekday %in% c(1,7))+1],
+     bg=c("#3a86ff33","#fb560733")[as.numeric(data$weekday %in% c(1,7))+1], 
+     pch=21, las=1, xlab="Price Residuals", ylab="Sales Residuals", cex=2) 
+abline(ols_ice_cream)
+```
+
+## Check Out the Model
+
+```{r}
+summary(ols_ice_cream)
+```
+
+# Your Turn
+
+## Load the Data
+
+```{r, echo=T, eval=T}
+sim_data <- read.csv("data/simulated_data.csv")
+summary(sim_data)
+```
+
+## Visualize the Data
+
+```{r, echo=F, eval=T}
+plot(sim_data$x, 
+     sim_data$y, 
+     col="black",
+     cex=2,
+     bg=pal[as.factor(cut(sim_data$z,quantile(sim_data$z,probs=seq(0,1,length.out=8))))],
+     las=1, xlab="X", ylab="Y", pch=21)
+```
+
+## Estimate the Standard OLS Model:
+
+Estimate an OLS linear regression of $y = \alpha + \beta_1 x + \beta_2 z + u$.
+
+```{r}
+## Your code here:
+
+```
+
+## Summarize Your Model:
+
+What is the estimated effect of $x$ on $y$?
+
+```{r}
+## Your code here:
+
+```
+
+## Begin Double ML
+
+Estimate a random forest model of $y = z$. Compute the residuals and store them in a vector called `y_on_z_resid`.
+
+```{r}
+## Your code here:
+
+```
+
+## Continue Double ML
+
+Estimate a random forest model of $x = z$. Compute the residuals and store them in a vector called `x_on_z_resid`.
+
+```{r}
+## Your code here:
+
+```
+
+## Finish your Double ML Estimator
+
+Estimate a linear model of `y_on_z_resid ~ x_on_z_resid` using the `lm(...)` function.
+
+```{r}
+## Your code here:
+
+```
+
+## Print a Summary of Your Model
+
+Summarize your model and determine the estimated effect of `x` on `y`.
+
+```{r}
+## Your code here:
+
+```
+
+# Conclusion
+
+## What Can Go Wrong?
+
+-   You could overfit:
+
+    -   Machine learning algorithms can sometimes fit the data *too* well.
+
+    -   This would cause your residuals to have *low* variance.
+
+    -   This could cause you to underestimate your effect or standard errors.
+
+-   The solution is to use k-fold cross-prediction:
+
+    -   Estimate your ML algorithms on partitions of the data.
+
+    -   Then, predict values out-of-sample to use in your third stage.
+
+## Conclusion
+
+-   The Frisch-Waugh-Lovell Theorem says:
+
+    -   We can estimate the linear effect of $x$ on $y$ in the presence of confounders $z$ using three separate equations.
+
+-   Double Machine Learning says:
+
+    -   We can use any (potentially powerful) ML estimator in the first two stages of FWL regression.
+
+-   Here, we get the benefits of flexible ML algorithms for the control variables and the interpretability of OLS for the treatment variable.
+
+## References
+
+-   <https://matheusfacure.github.io/python-causality-handbook/22-Debiased-Orthogonal-Machine-Learning.html>
+
+-   Chernozhukov et al. 2018. <https://doi.org/10.1111/ectj.12097>.
